@@ -1,3 +1,4 @@
+from collections import defaultdict
 from keras.applications import vgg19
 from keras.optimizers import SGD
 from keras.preprocessing import image
@@ -21,12 +22,22 @@ class NeuralModel:
             self.add_pretrained_model(pretrained_model)
 
     def add_pretrained_model(self, model):
-        self.pretrained_model = pretrained_model
-        outputs = [layer.output for i, layer in \
+        self.pretrained_model = model
+        self.pred_functors = {}
+        inp = self.pretrained_model.input
+        style_outputs = [layer.output for i, layer in \
                    enumerate(self.pretrained_model.layers)\
                    if i in [1,4,7,12,17]]
-        self.pred_functors = [K.function([inp]+ [K.learning_phase()], [out])\
-                                                for out in outputs]
+
+        self.pred_functors['style'] = [K.function([inp]+ [K.learning_phase()], [out])\
+                                                for out in style_outputs]
+        
+        content_outputs = [layer.output for i, layer in \
+                   enumerate(self.pretrained_model.layers)\
+                   if i in [13]]
+
+        self.pred_functors['content'] = [K.function([inp]+ [K.learning_phase()], [out])\
+                                                for out in content_outputs]
 
     def define_generator_model(self, dim=256, num_tensors=6, num_channels=3):
         inputs = []
@@ -35,10 +46,11 @@ class NeuralModel:
 
         models = []
         for z_input in inputs:
-            model = get_conv_block(num_blocks=3, model_input=z_input, filters=8, 
-                                   kernels=[(3,3), (3,3), (1,1)],\
-                                   normalization=BatchNormalization(), \
-                                   activation=LeakyReLU(alpha=.001))
+            model = get_conv_block(\
+                    num_blocks=3, model_input=z_input, filters=8, 
+                    kernels=[(3,3), (3,3), (1,1)],\
+                    normalization=BatchNormalization(), \
+                    activation=LeakyReLU(alpha=.001))
 
             models.append(model)
 
@@ -55,46 +67,48 @@ class NeuralModel:
             next_normalized = BatchNormalization()(models[i-1])
             merged_models = concatenate([prev_normalized, next_normalized])
 
-            merged_models = get_conv_block(num_blocks=3, model_input=merged_models, \
-                                   filters=curr_filters, \
-                                   kernels=[(3,3), (3,3), (1,1)],\
-                                   normalization=BatchNormalization(), \
-                                   activation=LeakyReLU(alpha=.001))
+            merged_models = get_conv_block(
+                                num_blocks=3, model_input=merged_models, 
+                                filters=curr_filters, 
+                                kernels=[(3,3), (3,3), (1,1)],
+                                normalization=BatchNormalization(), 
+                                activation=LeakyReLU(alpha=.001))
+
             curr_filters += 8
 
-        final_out = get_conv_block(num_blocks=3, model_input=merged_models, \
-                               filters=[curr_filters, curr_filters, curr_filters],\
-                               kernels=[(3,3), (3,3), (1,1)],\
-                               normalization=BatchNormalization(), \
-                               activation=LeakyReLU(alpha=.001))
+        final_out = get_conv_block(
+                            num_blocks=3, model_input=merged_models, \
+                            filters=[curr_filters, curr_filters, curr_filters],\
+                            kernels=[(3,3), (3,3), (1,1)],\
+                            normalization=BatchNormalization(), \
+                            activation=LeakyReLU(alpha=.001))
 
-        texture_image = get_conv_block(num_blocks=1, model_input=final_out, \
-                               filters=num_channels,\
-                               kernels=[(1,1)],\
-                               normalization=BatchNormalization(), \
-                               activation=LeakyReLU(alpha=.001))
+        texture_image = get_conv_block(
+                            num_blocks=1, model_input=final_out, 
+                            filters=num_channels,
+                            kernels=[(1,1)],
+                            normalization=BatchNormalization(), 
+                            activation=LeakyReLU(alpha=.001))
 
         self.model = Model(inputs=inputs, outputs=[texture_image])
         self.model.compile(optimizer='sgd', loss='mean_squared_error')
     
-    def fit_through_pretrained_network(self, **kwargs):
+    def fit_through_pretrained_network(self, images):
         if not self.pred_functors:
             raise ValueError("Please provide pretrained model for training")
 
-        content_images = kwargs['content_images']
-        targets = {}
-        targets['content_images'] = []
-        for img in content_images:
-            self.pretrained_model.predict(img)
+        targets = defaultdict(list)
+        for img_type in images:
+            for img in images[img_type]:
+                targets[img_type].append(\
+                        [img, [func([img, 1.]) for func \
+                        in self.pred_functors[img_type]]])
+
+    def fit(self, images):
+        self.fit_through_pretrained_network(images)
+        self.model.fit()
 
 
-    def fit(self, image):
-        inp = self.pretrained_model.input
-        outputs = [layer.output for i, layer in enumerate(self.pretrained_model.layers)\
-                                                if i in [1,4,7,12,17]]
-        functors = [K.function([inp]+ [K.learning_phase()], [out]) for out in outputs]
-        layer_outs = [func([img, 1.]) for func in functors]
-        print(layer_outs)
         
 
 
@@ -104,8 +118,7 @@ network.define_generator_model()
 
 img = np.array(image.load_img('test.png', target_size=(224, 224, 3)))
 img = np.expand_dims(img, axis=0)
-model = vgg19.VGG19(include_top=False, weights='imagenet')
-network.fit(img)
+network.fit({'content':[img]})
 """
 img = np.array(image.load_img('test.png', target_size=(3, 224, 224)))
 img = np.expand_dims(img, axis=0)
