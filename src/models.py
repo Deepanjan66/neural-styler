@@ -31,25 +31,53 @@ class NeuralModel:
                                    activation=LeakyReLU(alpha=.001))
 
             models.append(model)
-        
-        for i in reversed(range(len(models))):
 
-            upsampled_output = UpSampling2D(size=(2,2), data_format=None)(models[i])
+        # We'll increase the number of filters after every join by 8
+        curr_filters = 16
+        # This variable is assigned the last model output so that
+        # the same variable can be used to merge all outputs in the loop
+        merged_models = models[-1]
+
+        for i in reversed(range(1, len(models))):
+            
+            upsampled_output = UpSampling2D(size=(2,2), data_format=None)(merged_models)
             prev_normalized = BatchNormalization()(upsampled_output)
             next_normalized = BatchNormalization()(models[i-1])
-            print(prev_normalized, "And another: ", next_normalized)
-            exit(1)
+            merged_models = concatenate([prev_normalized, next_normalized])
 
-            merged_model = concatenate([prev_scale, model])
+            merged_models = get_conv_block(num_blocks=3, model_input=merged_models, filters=curr_filters, 
+                                   kernels=[(3,3), (3,3), (1,1)],\
+                                   normalization=BatchNormalization(), \
+                                   activation=LeakyReLU(alpha=.001))
+            curr_filters += 8
+
+        final_out = get_conv_block(num_blocks=3, model_input=merged_models, \
+                               filters=[curr_filters, curr_filters, curr_filters],\
+                               kernels=[(3,3), (3,3), (1,1)],\
+                               normalization=BatchNormalization(), \
+                               activation=LeakyReLU(alpha=.001))
+
+        texture_image = get_conv_block(num_blocks=1, model_input=final_out, \
+                               filters=3,\
+                               kernels=[(1,1)],\
+                               normalization=BatchNormalization(), \
+                               activation=LeakyReLU(alpha=.001))
+
+        self.model = Model(inputs=inputs, outputs=[texture_image])
+        self.model.compile(optimizer='sgd', loss='mean_squared_error')
+    
+    def fit_through_pretrained_network(self, **kwargs):
+        content_images = kwargs['content_images']
+        for img in content_images:
+            self.pretrained_model.predict(img)
 
 
-        self.network = model
+    def fit(self, inputs):
         
-        return models
 
 
 
-network = NeuralModel(None, (0,))
+network = NeuralModel(vgg19.VGG19(include_top=False, weights='imagenet'), (0,))
 network.define_generator_model()
 """
 img = np.array(image.load_img('test.png', target_size=(3, 224, 224)))

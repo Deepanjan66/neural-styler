@@ -17,17 +17,17 @@ def get_conv_block(num_blocks, model_input, filters, \
     model = model_input
     for i in range(num_blocks):
         model = Conv2D(filters=list_args['filters'][i], kernel_size=list_args['kernels'][i], \
-                strides=(1,1), padding="valid", \
+                strides=(1,1), padding="same", \
                 activation="linear", data_format="channels_last")(model)
         model = list_args['normalization'][i](model)
         model = list_args['activation'][i](model)
 
     return model
 
-def convert_to_list(num_blocks, **args):
-    for arg, val in args.items():
+def convert_to_list(num_blocks, **kwargs):
+    for kwarg, val in kwargs.items():
         if type(val) is not list:
-            args[arg] = [val for _ in range(num_blocks)]
+            kwargs[kwarg] = [val for _ in range(num_blocks)]
 
-    return args
+    return kwargs
 
