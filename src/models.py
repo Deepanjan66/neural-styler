@@ -12,10 +12,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from utilities import *
+from custom_layers import pretrained_layer
 
 
 class NeuralModel:
     def __init__(self, pretrained_model, input_shape):
+        #self.loss_function = loss_function
         self.input_shape = input_shape
         self.network = None
         if pretrained_model:
@@ -38,6 +40,8 @@ class NeuralModel:
 
         self.pred_functors['content'] = [K.function([inp]+ [K.learning_phase()], [out])\
                                                 for out in content_outputs]
+
+        self.pred_functors['all'] = self.pred_functors['content'] + self.pred_functors['style']
 
     def define_generator_model(self, dim=256, num_tensors=6, num_channels=3):
         inputs = []
@@ -89,24 +93,27 @@ class NeuralModel:
                             kernels=[(1,1)],
                             normalization=BatchNormalization(), 
                             activation=LeakyReLU(alpha=.001))
-
+        #=========================================================
+        #pretrained_activations = pretrained_layer
+        #=========================================================
         self.model = Model(inputs=inputs, outputs=[texture_image])
         self.model.compile(optimizer='sgd', loss='mean_squared_error')
     
     def fit_through_pretrained_network(self, images):
         if not self.pred_functors:
             raise ValueError("Please provide pretrained model for training")
-
-        targets = defaultdict(list)
+        
+        targets = []
         for img_type in images:
             for img in images[img_type]:
-                targets[img_type].append(\
-                        [img, [func([img, 1.]) for func \
-                        in self.pred_functors[img_type]]])
+                targets += [np.array(func([img, 1.]))[0][0] for func \
+                        in self.pred_functors[img_type]]
+        
+        gram_sum(arr)
+        #print(np.array(targets).shape)
 
     def fit(self, images):
         self.fit_through_pretrained_network(images)
-        self.model.fit()
 
 
         
@@ -118,7 +125,7 @@ network.define_generator_model()
 
 img = np.array(image.load_img('test.png', target_size=(224, 224, 3)))
 img = np.expand_dims(img, axis=0)
-network.fit({'content':[img]})
+network.fit({'style':[img]})
 """
 img = np.array(image.load_img('test.png', target_size=(3, 224, 224)))
 img = np.expand_dims(img, axis=0)

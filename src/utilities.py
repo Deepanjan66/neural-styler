@@ -31,3 +31,21 @@ def convert_to_list(num_blocks, **kwargs):
 
     return kwargs
 
+def gram_sum(arr):
+    l, w, n = arr.shape
+    arr = np.flatten(arr)
+    
+    pos_i = l*w
+    pos_j = l*w
+    sum = 0
+    """
+    while pos_i + (l*w) < i*w*n:
+        for i in range(pos_i - (l*w), pos_i):
+            for j in range(pos_j, pos_j + (l*w)):
+                sum += arr[i] * arr[j]
+            pos_j += (l*w)
+        pos_i += (l*w)
+        pos_j = pos_i
+    """
+
+
