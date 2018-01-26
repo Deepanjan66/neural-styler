@@ -37,8 +37,10 @@ def gram_matrix_sum(arr):
     j = 0
     gram_sum = 0
     for layer in range(j, shape_dict['layers']):
-        for neuron in range(j + 1, shape_dict['layers']):
-            gram_sum += np.multiply(arr[:,:,layer], arr[:,:,neuron])
+        for neuron in range(j + 1, shape_dict['x=layer']):
+            print(shape_dict)
+            print(layer, neuron)
+            gram_sum += np.multiply(arr[layer], arr[neuron])
         j += 1
 
     return gram_sum

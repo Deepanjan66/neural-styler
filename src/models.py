@@ -104,12 +104,18 @@ class NeuralModel:
             raise ValueError("Please provide pretrained model for training")
         
         targets = []
+        for img in images['style']:
+            #targets.append([np.array(func(img, 1.))[0][0] for func in self.pred_functors['all']])
+            targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['style']]))
+        gram_values = []
+        for layer in targets[0]:
+            gram_values.append(gram_matrix_sum(layer))
+        """
         for img_type in images:
             for img in images[img_type]:
                 targets += [np.array(func([img, 1.]))[0][0] for func \
                         in self.pred_functors[img_type]]
-        
-        gram_sum(arr)
+        """
         #print(np.array(targets).shape)
 
     def fit(self, images):
