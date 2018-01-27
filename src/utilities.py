@@ -1,3 +1,4 @@
+from keras import backend as K
 from keras.layers import Conv2D
 import numpy as np
 
@@ -38,9 +39,28 @@ def gram_matrix_sum(arr):
     gram_sum = 0
     for layer in range(j, shape_dict['layers']):
         for neuron in range(j + 1, shape_dict['layers']):
-            gram_sum += np.multiply(arr[:,:,layer], arr[:,:,neuron])
+            gram_sum += np.sum(np.multiply(arr[:,:,layer], arr[:,:,neuron]))
         j += 1
 
     return gram_sum
 
+def get_model_layers(pretrained_model):
+    inp = pretrained_model.input
+    pred_functors = {}
+    style_outputs = [layer.output for i, layer in \
+               enumerate(pretrained_model.layers)\
+               if i in [1,4,7,12,17]]
 
+    pred_functors['style'] = [K.function([inp]+ [K.learning_phase()], [out])\
+                                            for out in style_outputs]
+    
+    content_outputs = [layer.output for i, layer in \
+               enumerate(pretrained_model.layers)\
+               if i in [13]]
+
+    pred_functors['content'] = [K.function([inp]+ [K.learning_phase()], [out])\
+                                            for out in content_outputs]
+
+    pred_functors['all'] = pred_functors['content'] + pred_functors['style']
+
+    return pred_functors

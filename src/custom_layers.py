@@ -1,6 +1,7 @@
 from keras import backend as K
 from keras.engine.topology import Layer
 import numpy as np
+from utilities import gram_matrix_sum
 
 class pretrained_layer(Layer):
     def __init__(self, output_dim, pretrained_layer_functors, **kwargs):
@@ -12,7 +13,13 @@ class pretrained_layer(Layer):
         super(pretrained_layer, self).build(input_shape)
 
     def call(self, x):
-        return np.array([np.array(func(img, 1.))[0][0] for func in self.pretrained_layer_functors])
+        rssults = np.array([np.array(func([x, 1.]))[0][0] for func in self.pretrained_layer_functors])
+        preds = []
+        for layer in results[0]:
+            preds.append(gram_matrix_sum(layer))
+        print(preds)
+        return preds
+
 
     def compute_output_shape(self, input_shape):
         return (input_shape[0], self.output_dim)

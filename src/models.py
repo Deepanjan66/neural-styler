@@ -13,7 +13,9 @@ import numpy as np
 
 from utilities import *
 from custom_layers import pretrained_layer
+from loss_func import *
 
+from configs import pretrained_network
 
 class NeuralModel:
     def __init__(self, pretrained_model, input_shape):
@@ -25,23 +27,7 @@ class NeuralModel:
 
     def add_pretrained_model(self, model):
         self.pretrained_model = model
-        self.pred_functors = {}
-        inp = self.pretrained_model.input
-        style_outputs = [layer.output for i, layer in \
-                   enumerate(self.pretrained_model.layers)\
-                   if i in [1,4,7,12,17]]
-
-        self.pred_functors['style'] = [K.function([inp]+ [K.learning_phase()], [out])\
-                                                for out in style_outputs]
-        
-        content_outputs = [layer.output for i, layer in \
-                   enumerate(self.pretrained_model.layers)\
-                   if i in [13]]
-
-        self.pred_functors['content'] = [K.function([inp]+ [K.learning_phase()], [out])\
-                                                for out in content_outputs]
-
-        self.pred_functors['all'] = self.pred_functors['content'] + self.pred_functors['style']
+        self.pred_functors = get_model_layers(model)
 
     def define_generator_model(self, dim=256, num_tensors=6, num_channels=3):
         inputs = []
@@ -93,11 +79,9 @@ class NeuralModel:
                             kernels=[(1,1)],
                             normalization=BatchNormalization(), 
                             activation=LeakyReLU(alpha=.001))
-        #=========================================================
-        #pretrained_activations = pretrained_layer
-        #=========================================================
+        print(texture_image)
         self.model = Model(inputs=inputs, outputs=[texture_image])
-        self.model.compile(optimizer='sgd', loss='mean_squared_error')
+        self.model.compile(optimizer='sgd', loss=mean_squared_loss)
     
     def fit_through_pretrained_network(self, images):
         if not self.pred_functors:
@@ -110,26 +94,21 @@ class NeuralModel:
         gram_values = []
         for layer in targets[0]:
             gram_values.append(gram_matrix_sum(layer))
-        """
-        for img_type in images:
-            for img in images[img_type]:
-                targets += [np.array(func([img, 1.]))[0][0] for func \
-                        in self.pred_functors[img_type]]
-        """
+        return gram_values
         #print(np.array(targets).shape)
 
     def fit(self, images):
-        self.fit_through_pretrained_network(images)
+        target = self.fit_through_pretrained_network(images)
+        rand_img = [np.random.randn(2, 4, 3) for _ in range(6)]
+        self.model.fit(rand_img, target, epochs=10)
 
 
         
 
-
-
-network = NeuralModel(vgg19.VGG19(include_top=False, weights='imagenet'), (0,))
+network = NeuralModel(pretrained_network, (0,))
 network.define_generator_model()
 
-img = np.array(image.load_img('test.png', target_size=(224, 224, 3)))
+img = np.array(image.load_img('test.png', target_size=(256, 256, 3)))
 img = np.expand_dims(img, axis=0)
 network.fit({'style':[img]})
 """
