@@ -34,15 +34,15 @@ def convert_to_list(num_blocks, **kwargs):
     return kwargs
 
 def gram_matrix_sum(arr):
-    shape_dict = {'x':arr.shape[0], 'y': arr.shape[1], 'layers':arr.shape[2]}
+    shape_dict = {'x':arr.shape[1], 'y': arr.shape[2], 'layers':arr.shape[3]}
     j = 0
     gram_sum = 0
     for layer in range(j, shape_dict['layers']):
         for neuron in range(j + 1, shape_dict['layers']):
-            gram_sum += np.sum(np.multiply(arr[:,:,layer], arr[:,:,neuron]))
+            gram_sum += np.sum(np.multiply(arr[0][:,:,layer], arr[0][:,:,neuron]))
         j += 1
-
-    return gram_sum
+    print(gram_sum)
+    return K.constant(gram_sum)
 
 def get_model_layers(pretrained_model):
     inp = pretrained_model.input

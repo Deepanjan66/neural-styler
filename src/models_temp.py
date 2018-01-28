@@ -18,12 +18,10 @@ from loss_func import *
 from configs import pretrained_network
 
 class NeuralModel:
-    def __init__(self, pretrained_model, input_shape, style_layers, content_layers):
+    def __init__(self, pretrained_model, input_shape):
         #self.loss_function = loss_function
         self.input_shape = input_shape
         self.network = None
-        self.style_layers = style_layers
-        self.content_layers = content_layers
         if pretrained_model:
             self.add_pretrained_model(pretrained_model)
 
@@ -81,33 +79,8 @@ class NeuralModel:
                             kernels=[(1,1)],
                             normalization=BatchNormalization(), 
                             activation=LeakyReLU(alpha=.001))
-        
-        #input_tensor = Input(shape=texture_image.shape[1:], name="vgg_input")
-        vgg_model = vgg19.VGG19(include_top=False, weights='imagenet', input_tensor=texture_image[1:])
-        
-        intermediary_layers = defaultdict(list)
-        input_vec = texture_image
-        for i in range(len(vgg_model.layers)):
-            vgg_model.layers[i].trainable = False
-            input_vec = vgg_model.layers[i](input_vec)
-            if i in self.style_layers:
-                intermediary_layers['style'].append(input_vec)
-            elif i in self.content_layers:
-                intermediary_layers['content'].append(input_vec)
-
-        gram_res = []
-        gram_res.append(gram_matrix_sum(intermediary_layers['style'][0]))
-        pirnt(gram_res[0])
-        #print(gram_res[0])
-        #for tensor in intermediary_layers['style']:
-        #    gram_res.append(gram_matrix_sum(tensor))
-            
-
-        output_layers = [texture_image] + gram_res
-
-        self.model = Model(inputs=inputs, outputs=output_layers)
-        self.model.compile(optimizer='sgd', loss=mean_squared_loss)
-        exit(1)
+        self.model = Model(inputs=inputs, outputs=[texture_image])
+        self.model.compile(optimizer='sgd', loss="mean_squared_error")
     
     def fit_through_pretrained_network(self, images):
         if not self.pred_functors:
@@ -135,7 +108,7 @@ class NeuralModel:
 
         
 
-network = NeuralModel(pretrained_network, (0,), [1,4,7,12,17], [13])
+network = NeuralModel(pretrained_network, (0,))
 network.define_generator_model()
 
 img = np.array(image.load_img('test.png', target_size=(256, 256, 3)))
