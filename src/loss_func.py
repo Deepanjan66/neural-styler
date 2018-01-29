@@ -6,4 +6,5 @@ from configs import pretrained_network
 from utilities import get_model_layers
 
 def mean_squared_loss(y_true, y_pred):
+    print(y_true)
     return y_pred

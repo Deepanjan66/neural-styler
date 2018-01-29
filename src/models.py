@@ -6,10 +6,11 @@ from keras.layers import Input, Flatten, Dense, Conv2D, UpSampling2D
 from keras.models import Model
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.normalization import BatchNormalization
-from keras.layers import concatenate
+from keras.layers import concatenate, Lambda
 from keras import backend as K
 import matplotlib.pyplot as plt
 import numpy as np
+from keras.utils import plot_model
 
 from utilities import *
 from custom_layers import pretrained_layer
@@ -96,60 +97,70 @@ class NeuralModel:
                 intermediary_layers['content'].append(input_vec)
 
         gram_res = []
-        gram_res.append(gram_matrix_sum(intermediary_layers['style'][0]))
-        pirnt(gram_res[0])
+        #for layer in intermediary_layers['style']:
+        #    lambda_layer = Lambda(gram_matrix_sum)(intermediary_layers['style'][0])
+        #    print(lambda_layer)
+        #    gram_res.append(lambda_layer)
+
         #print(gram_res[0])
         #for tensor in intermediary_layers['style']:
         #    gram_res.append(gram_matrix_sum(tensor))
             
 
-        output_layers = [texture_image] + gram_res
+        output_layers = [texture_image] + intermediary_layers['content'] + gram_res
 
         self.model = Model(inputs=inputs, outputs=output_layers)
-        self.model.compile(optimizer='sgd', loss=mean_squared_loss)
+        self.model.compile(optimizer='sgd', loss="mean_squared_error")
+        plot_model(self.model, to_file='model.png')
         exit(1)
-    
+
     def fit_through_pretrained_network(self, images):
         if not self.pred_functors:
             raise ValueError("Please provide pretrained model for training")
         
         targets = []
+        for img in images['content']:
+            #targets.append([np.array(func(img, 1.))[0][0] for func in self.pred_functors['all']])
+            targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['content']]))
         for img in images['style']:
             #targets.append([np.array(func(img, 1.))[0][0] for func in self.pred_functors['all']])
             targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['style']]))
-        gram_values = []
-        for layer in targets[0]:
-            gram_values.append(gram_matrix_sum(layer))
+        gram_values = [targets[0]]
+        for layer in targets[1]:
+            mat = gram_matrix_training(layer)
+            gram_values.append(mat)
         return gram_values
         #print(np.array(targets).shape)
 
     def fit(self, images):
-        #target = self.fit_through_pretrained_network(images)
+        target = self.fit_through_pretrained_network(images)
         rand_img = [np.expand_dims(np.random.randint(0, high=255, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
                 for i in range(6)]
-        self.model.fit(rand_img, images['style'][0], epochs=100)
+        self.model.fit(rand_img, images['content'] + target, epochs=100)
 
     def pred(self, img):
         return self.model.predict(img)
 
 
-        
+
 
 network = NeuralModel(pretrained_network, (0,), [1,4,7,12,17], [13])
 network.define_generator_model()
 
 img = np.array(image.load_img('test.png', target_size=(256, 256, 3)))
 img = np.expand_dims(img, axis=0)
-network.fit({'style':[img]})
-rand_img = [np.expand_dims(np.random.randint(0, high=255, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
-        for i in range(1, 6)]
-img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3)))
-img = np.expand_dims(img, axis=0)
-rand_img = [img] + rand_img
-res = network.pred(rand_img).reshape((256,256,3))
+content_img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3)))
+content_img = np.expand_dims(content_img, axis=0)
+network.fit({'style':[img], 'content':[content_img]})
+#rand_img = [np.expand_dims(np.random.randint(0, high=255, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
+#        for i in range(1, 6)]
+#img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3)))
+#img = np.expand_dims(img, axis=0)
+#rand_img = [img] + rand_img
+#res = network.pred(rand_img).reshape((256,256,3))
 
-plt.imshow(res)
-plt.show()
+#plt.imshow(res)
+#plt.show()
 
 """
 img = np.array(image.load_img('test.png', target_size=(3, 224, 224)))
