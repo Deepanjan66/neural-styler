@@ -97,10 +97,13 @@ class NeuralModel:
                 intermediary_layers['content'].append(input_vec)
 
         gram_res = []
-        #for layer in intermediary_layers['style']:
-        #    lambda_layer = Lambda(gram_matrix_sum)(intermediary_layers['style'][0])
-        #    print(lambda_layer)
-        #    gram_res.append(lambda_layer)
+        print("started calculating gram matrices for network outputs")
+        for layer in intermediary_layers['style']:
+            print("Looking at:",layer)
+            gram_res.append(Lambda(gram_matrix_sum)(layer))
+            print("Finished with:",layer)
+
+        print("Done getting all gram matrices")
 
         #print(gram_res[0])
         #for tensor in intermediary_layers['style']:
@@ -111,8 +114,10 @@ class NeuralModel:
 
         self.model = Model(inputs=inputs, outputs=output_layers)
         self.model.compile(optimizer='sgd', loss="mean_squared_error")
+        print("Creating graph image")
         plot_model(self.model, to_file='model.png')
-        exit(1)
+        print("Created graph image")
+
 
     def fit_through_pretrained_network(self, images):
         if not self.pred_functors:
@@ -127,8 +132,10 @@ class NeuralModel:
             targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['style']]))
         gram_values = [targets[0]]
         for layer in targets[1]:
+            print("Finding gram matrix for training:",layer)
             mat = gram_matrix_training(layer)
             gram_values.append(mat)
+            print("Finished with:",layer)
         return gram_values
         #print(np.array(targets).shape)
 
@@ -136,7 +143,9 @@ class NeuralModel:
         target = self.fit_through_pretrained_network(images)
         rand_img = [np.expand_dims(np.random.randint(0, high=255, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
                 for i in range(6)]
-        self.model.fit(rand_img, images['content'] + target, epochs=100)
+        print("Training network with provided training images")
+        checkpointer = ModelCheckpoint(filepath='/tmp/weights.hdf5', verbose=1, save_best_only=True)
+        self.model.fit(rand_img, images['content'] + target, epochs=100, callbacks=[checkpointer])
 
     def pred(self, img):
         return self.model.predict(img)
