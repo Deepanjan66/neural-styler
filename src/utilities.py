@@ -34,13 +34,21 @@ def convert_to_list(num_blocks, **kwargs):
     return kwargs
 
 def gram_matrix_sum(arr):
-    shape_dict = {'x':arr.shape[1], 'y': arr.shape[2], 'layers':arr.shape[3]}
-    j = 0
-    gram_sum = 0
-    for layer in range(j, shape_dict['layers']):
-        for neuron in range(j + 1, shape_dict['layers']):
-            gram_sum += np.multiply(arr[0][:,:,layer], arr[0][:,:,neuron])
-        j += 1
+    if len(arr.shape) == 4:
+        _ , length, width, num_kernels = arr.shape
+    else:
+        length, width, num_kernels = arr.shape
+    arr = K.reshape(arr,(length, width*num_kernels))
+    gram_sum = K.dot(arr, K.transpose(arr))
+    return gram_sum
+
+def gram_matrix_sum_training(arr):
+    if len(arr.shape) == 4:
+        _ , length, width, num_kernels = arr.shape
+    else:
+        length, width, num_kernels = arr.shape
+    arr = np.reshape(arr,(length, width*num_kernels))
+    gram_sum = np.matmul(arr, K.transpose(arr))
     return gram_sum
 
 def gram_matrix_training(arr):
@@ -63,7 +71,7 @@ def get_model_layers(pretrained_model):
 
     pred_functors['style'] = [K.function([inp]+ [K.learning_phase()], [out])\
                                             for out in style_outputs]
-    
+  
     content_outputs = [layer.output for i, layer in \
                enumerate(pretrained_model.layers)\
                if i in [13]]

@@ -7,6 +7,7 @@ from keras.models import Model
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.normalization import BatchNormalization
 from keras.layers import concatenate, Lambda
+from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 import matplotlib.pyplot as plt
 import numpy as np
@@ -105,11 +106,6 @@ class NeuralModel:
 
         print("Done getting all gram matrices")
 
-        #print(gram_res[0])
-        #for tensor in intermediary_layers['style']:
-        #    gram_res.append(gram_matrix_sum(tensor))
-            
-
         output_layers = [texture_image] + intermediary_layers['content'] + gram_res
 
         self.model = Model(inputs=inputs, outputs=output_layers)
@@ -132,10 +128,8 @@ class NeuralModel:
             targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['style']]))
         gram_values = [targets[0]]
         for layer in targets[1]:
-            print("Finding gram matrix for training:",layer)
-            mat = gram_matrix_training(layer)
+            mat = np.array(gram_matrix_training(layer))
             gram_values.append(mat)
-            print("Finished with:",layer)
         return gram_values
         #print(np.array(targets).shape)
 
@@ -145,7 +139,8 @@ class NeuralModel:
                 for i in range(6)]
         print("Training network with provided training images")
         checkpointer = ModelCheckpoint(filepath='/tmp/weights.hdf5', verbose=1, save_best_only=True)
-        self.model.fit(rand_img, images['content'] + target, epochs=100, callbacks=[checkpointer])
+
+        self.model.fit(rand_img, images['content'] + target, epochs=1000, callbacks=[checkpointer])
 
     def pred(self, img):
         return self.model.predict(img)
