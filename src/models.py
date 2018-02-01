@@ -83,7 +83,7 @@ class NeuralModel:
                             kernels=[(1,1)],
                             normalization=BatchNormalization(), 
                             activation=LeakyReLU(alpha=.001))
-        
+
         #input_tensor = Input(shape=texture_image.shape[1:], name="vgg_input")
         vgg_model = vgg19.VGG19(include_top=False, weights='imagenet', input_tensor=texture_image[1:])
         
@@ -101,7 +101,7 @@ class NeuralModel:
         print("started calculating gram matrices for network outputs")
         for layer in intermediary_layers['style']:
             print("Looking at:",layer)
-            gram_res.append(Lambda(gram_matrix_sum)(layer))
+            gram_res.append(Lambda(gram_matrix_sum, name="style" + str(len(gram_res)))(layer))
             print("Finished with:",layer)
 
         print("Done getting all gram matrices")
@@ -109,9 +109,9 @@ class NeuralModel:
         output_layers = [texture_image] + intermediary_layers['content'] + gram_res
 
         self.model = Model(inputs=inputs, outputs=output_layers)
-        self.model.compile(optimizer='sgd', loss="mean_squared_error")
+        self.model.compile(optimizer='sgd', loss=mean_squared_loss)
         print("Creating graph image")
-        plot_model(self.model, to_file='updated_model.png')
+        plot_model(self.model, to_file='updated_model1.png')
         print("Created graph image")
 
 

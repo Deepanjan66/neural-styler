@@ -39,7 +39,10 @@ def gram_matrix_sum(arr):
     else:
         length, width, num_kernels = arr.shape
     arr = K.reshape(arr,(length, width*num_kernels))
+
     gram_sum = K.dot(arr, K.transpose(arr))
+    gram_sum = K.reshape(gram_sum, (1, gram_sum.shape[0], gram_sum.shape[1]))
+
     return gram_sum
 
 def gram_matrix_sum_training(arr):
@@ -60,6 +63,8 @@ def gram_matrix_training(arr):
         for neuron in range(j + 1, shape_dict['layers']):
             gram_sum += np.multiply(arr[:,:,layer], arr[:,:,neuron])
         j += 1
+    gram_sum = np.array(gram_sum)
+    gram_sum = np.expand_dims(gram_sum, axis=0)
     return gram_sum
 
 def get_model_layers(pretrained_model):
