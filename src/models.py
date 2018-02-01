@@ -111,7 +111,7 @@ class NeuralModel:
         self.model = Model(inputs=inputs, outputs=output_layers)
         self.model.compile(optimizer='sgd', loss="mean_squared_error")
         print("Creating graph image")
-        plot_model(self.model, to_file='model.png')
+        plot_model(self.model, to_file='updated_model.png')
         print("Created graph image")
 
 
