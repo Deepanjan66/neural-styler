@@ -107,9 +107,10 @@ class NeuralModel:
         print("Done getting all gram matrices")
 
         output_layers = [texture_image] + intermediary_layers['content'] + gram_res
+        sgd = SGD(lr=0.01, momentum=0.1, decay=0.0, nesterov=True)
 
         self.model = Model(inputs=inputs, outputs=output_layers)
-        self.model.compile(optimizer='sgd', loss=mean_squared_loss)
+        self.model.compile(optimizer=sgd, loss=mean_squared_loss)
         print("Creating graph image")
         plot_model(self.model, to_file='updated_model1.png')
         print("Created graph image")
@@ -135,12 +136,13 @@ class NeuralModel:
 
     def fit(self, images):
         target = self.fit_through_pretrained_network(images)
-        rand_img = [np.expand_dims(np.random.randint(0, high=255, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
+        rand_img = [np.expand_dims(np.random.randint(0, high=1, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
                 for i in range(6)]
         print("Training network with provided training images")
         checkpointer = ModelCheckpoint(filepath='/tmp/weights.hdf5', verbose=1, save_best_only=True)
 
-        self.model.fit(rand_img, images['content'] + target, epochs=1000, callbacks=[checkpointer])
+        self.model.fit(rand_img, images['content'] + target, epochs=100, callbacks=[checkpointer])
+        self.model.save_weights('/tmp/weights.hdf5')
 
     def pred(self, img):
         return self.model.predict(img)
@@ -151,20 +153,20 @@ class NeuralModel:
 network = NeuralModel(pretrained_network, (0,), [1,4,7,12,17], [13])
 network.define_generator_model()
 
-img = np.array(image.load_img('test.png', target_size=(256, 256, 3)))
+img = np.array(image.load_img('test.png', target_size=(256, 256, 3))) / 255
 img = np.expand_dims(img, axis=0)
-content_img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3)))
+content_img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3))) / 255
 content_img = np.expand_dims(content_img, axis=0)
 network.fit({'style':[img], 'content':[content_img]})
-#rand_img = [np.expand_dims(np.random.randint(0, high=255, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
-#        for i in range(1, 6)]
-#img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3)))
-#img = np.expand_dims(img, axis=0)
-#rand_img = [img] + rand_img
-#res = network.pred(rand_img).reshape((256,256,3))
+rand_img = [np.expand_dims(np.random.randint(0, high=1, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
+        for i in range(1, 6)]
+img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3))) / 255
+img = np.expand_dims(img, axis=0)
+rand_img = [img] + rand_img
+res = network.pred(rand_img)[0].reshape((256,256,3))
 
-#plt.imshow(res)
-#plt.show()
+plt.imshow(res)
+plt.show()
 
 """
 img = np.array(image.load_img('test.png', target_size=(3, 224, 224)))
