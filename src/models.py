@@ -6,7 +6,7 @@ from keras.layers import Input, Flatten, Dense, Conv2D, UpSampling2D
 from keras.models import Model
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.normalization import BatchNormalization
-from keras.layers import concatenate, Lambda
+from keras.layers import concatenate, Lambda, Add
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 import matplotlib.pyplot as plt
@@ -105,7 +105,6 @@ class NeuralModel:
             print("Finished with:",layer)
 
         print("Done getting all gram matrices")
-
         output_layers = [texture_image] + intermediary_layers['content'] + gram_res
         sgd = SGD(lr=0.01, momentum=0.1, decay=0.0, nesterov=True)
 
@@ -141,7 +140,7 @@ class NeuralModel:
         print("Training network with provided training images")
         checkpointer = ModelCheckpoint(filepath='/tmp/weights.hdf5', verbose=1, save_best_only=True)
 
-        self.model.fit(rand_img, images['content'] + target, epochs=100, callbacks=[checkpointer])
+        self.model.fit(rand_img, images['content'] + target, epochs=10000, callbacks=[checkpointer])
         self.model.save_weights('/tmp/weights.hdf5')
 
     def pred(self, img):

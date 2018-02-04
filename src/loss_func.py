@@ -10,4 +10,4 @@ def mean_squared_loss(y_true, y_pred):
     if "leaky" in y_pred.name:
         return K.constant(0)
     loss = mean_squared_error(y_true, y_pred)
-    return loss / K.max(loss)
+    return loss / K.sum(loss)
