@@ -1,10 +1,11 @@
 from collections import defaultdict
 from keras.applications import vgg19
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adam
 from keras.preprocessing import image
 from keras.layers import Input, Flatten, Dense, Conv2D, UpSampling2D
-from keras.models import Model
+from keras.models import Model, load_model
 from keras.layers.advanced_activations import LeakyReLU
+from keras.activations import relu
 from keras.layers.normalization import BatchNormalization
 from keras.layers import concatenate, Lambda, Add
 from keras.callbacks import ModelCheckpoint
@@ -103,13 +104,13 @@ class NeuralModel:
             print("Looking at:",layer)
             gram_res.append(Lambda(gram_matrix_sum, name="style" + str(len(gram_res)))(layer))
             print("Finished with:",layer)
-
+        
         print("Done getting all gram matrices")
         output_layers = [texture_image] + intermediary_layers['content'] + gram_res
-        sgd = SGD(lr=0.01, momentum=0.1, decay=0.0, nesterov=True)
+        adam = Adam(lr=0.1)
 
         self.model = Model(inputs=inputs, outputs=output_layers)
-        self.model.compile(optimizer=sgd, loss=mean_squared_loss)
+        self.model.compile(optimizer=adam, loss=mean_squared_loss)
         print("Creating graph image")
         plot_model(self.model, to_file='updated_model1.png')
         print("Created graph image")
@@ -139,9 +140,10 @@ class NeuralModel:
                 for i in range(6)]
         print("Training network with provided training images")
         checkpointer = ModelCheckpoint(filepath='/tmp/weights.hdf5', verbose=1, save_best_only=True)
-
-        self.model.fit(rand_img, images['content'] + target, epochs=10000, callbacks=[checkpointer])
-        self.model.save_weights('/tmp/weights.hdf5')
+        for _ in range(1000):
+            self.model.fit(rand_img, images['content'] + target, callbacks=[checkpointer], batch_size=1)
+        self.model.save_weights('my_weights.hdf5')
+        self.model.save('my_model.h5')
 
     def pred(self, img):
         return self.model.predict(img)
@@ -163,6 +165,7 @@ img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256
 img = np.expand_dims(img, axis=0)
 rand_img = [img] + rand_img
 res = network.pred(rand_img)[0].reshape((256,256,3))
+res = res * 255
 
 plt.imshow(res)
 plt.show()

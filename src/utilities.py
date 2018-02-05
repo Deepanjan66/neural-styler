@@ -20,9 +20,9 @@ def get_conv_block(num_blocks, model_input, filters, \
     for i in range(num_blocks):
         model = Conv2D(filters=list_args['filters'][i], kernel_size=list_args['kernels'][i], \
                 strides=(1,1), padding="same", \
-                activation="linear", data_format="channels_last")(model)
+                data_format="channels_last", activation='relu')(model)
         model = list_args['normalization'][i](model)
-        model = list_args['activation'][i](model)
+        #model = list_args['activation'][i](model)
 
     return model
 
