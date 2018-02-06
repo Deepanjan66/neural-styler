@@ -6,6 +6,7 @@ from keras.layers import Input, Flatten, Dense, Conv2D, UpSampling2D
 from keras.models import Model, load_model
 from keras.layers.advanced_activations import LeakyReLU
 from keras.activations import relu
+from keras.callbacks import LearningRateScheduler
 from keras.layers.normalization import BatchNormalization
 from keras.layers import concatenate, Lambda, Add
 from keras.callbacks import ModelCheckpoint
@@ -110,10 +111,11 @@ class NeuralModel:
         adam = Adam(lr=0.1)
 
         self.model = Model(inputs=inputs, outputs=output_layers)
-        self.model.compile(optimizer=adam, loss=mean_squared_loss)
+        self.model.compile(optimizer=adam, loss=mean_squared_loss, loss_weights=[0, 1.6, 1, 1, 1, 1, 1])
         print("Creating graph image")
         plot_model(self.model, to_file='updated_model1.png')
         print("Created graph image")
+        self.model.load_weights('my_weights.hdf5')
 
 
     def fit_through_pretrained_network(self, images):
@@ -140,8 +142,9 @@ class NeuralModel:
                 for i in range(6)]
         print("Training network with provided training images")
         checkpointer = ModelCheckpoint(filepath='/tmp/weights.hdf5', verbose=1, save_best_only=True)
-        for _ in range(1000):
-            self.model.fit(rand_img, images['content'] + target, callbacks=[checkpointer], batch_size=1)
+        lr_schedular = LearningRateScheduler(schedular)
+        #for _ in range(1000):
+        self.model.fit(rand_img, images['content'] + target, callbacks=[checkpointer, lr_schedular], batch_size=1, epochs=3000)
         self.model.save_weights('my_weights.hdf5')
         self.model.save('my_model.h5')
 
