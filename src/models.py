@@ -108,7 +108,7 @@ class NeuralModel:
         
         print("Done getting all gram matrices")
         output_layers = [texture_image] + intermediary_layers['content'] + gram_res
-        adam = Adam(lr=0.1)
+        adam = Adam(lr=0.001)
 
         self.model = Model(inputs=inputs, outputs=output_layers)
         self.model.compile(optimizer=adam, loss=mean_squared_loss, loss_weights=[0, 1.6, 1, 1, 1, 1, 1])
