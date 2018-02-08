@@ -10,11 +10,3 @@ def mean_squared_loss(y_true, y_pred):
     loss = mean_squared_error(y_true, y_pred)
     return loss
 
-def schedular(epoch):
-    if epoch > 2300:
-        return float(0.1)
-    if epoch > 1500:
-        return float(0.5)
-    return float(1)
-
-

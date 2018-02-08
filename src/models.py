@@ -108,7 +108,7 @@ class NeuralModel:
         
         print("Done getting all gram matrices")
         output_layers = [texture_image] + intermediary_layers['content'] + gram_res
-        adam = Adam(lr=0.001)
+        adam = Adam(lr=0.1)
 
         self.model = Model(inputs=inputs, outputs=output_layers)
         self.model.compile(optimizer=adam, loss=mean_squared_loss, loss_weights=[0, 1.6, 1, 1, 1, 1, 1])
@@ -144,7 +144,7 @@ class NeuralModel:
         checkpointer = ModelCheckpoint(filepath='/tmp/weights.hdf5', verbose=1, save_best_only=True)
         lr_schedular = LearningRateScheduler(schedular)
         #for _ in range(1000):
-        self.model.fit(rand_img, images['content'] + target, callbacks=[checkpointer, lr_schedular], batch_size=1, epochs=3000)
+        self.model.fit(rand_img, images['content'] + target, callbacks=[checkpointer], batch_size=1, epochs=300)
         self.model.save_weights('my_weights.hdf5')
         self.model.save('my_model.h5')
 
