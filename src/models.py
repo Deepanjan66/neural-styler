@@ -19,17 +19,23 @@ from utilities import *
 from custom_layers import pretrained_layer
 from loss_func import *
 
-from configs import pretrained_network
+from configs import *
 
 class NeuralModel:
-    def __init__(self, pretrained_model, input_shape, style_layers, content_layers):
+    def __init__(self, input_shape, 
+                style_layers=pretrained_style_layers, 
+                content_layers=pretrained_content_layers, 
+                pretrained_model=pretrained_network,
+                weight_file=None,
+                loss_weights=[1]):
         #self.loss_function = loss_function
         self.input_shape = input_shape
         self.network = None
         self.style_layers = style_layers
         self.content_layers = content_layers
-        if pretrained_model:
-            self.add_pretrained_model(pretrained_model)
+        self.add_pretrained_model(pretrained_model)
+        self.weight_file=weight_file
+        self.loss_weights = loss_weights
 
     def add_pretrained_model(self, model):
         self.pretrained_model = model
@@ -86,14 +92,11 @@ class NeuralModel:
                             normalization=BatchNormalization(), 
                             activation=LeakyReLU(alpha=.001))
 
-        #input_tensor = Input(shape=texture_image.shape[1:], name="vgg_input")
-        vgg_model = vgg19.VGG19(include_top=False, weights='imagenet', input_tensor=texture_image[1:])
-        
         intermediary_layers = defaultdict(list)
         input_vec = texture_image
-        for i in range(len(vgg_model.layers)):
-            vgg_model.layers[i].trainable = False
-            input_vec = vgg_model.layers[i](input_vec)
+        for i in range(len(self.pretained_model.layers)):
+            self.pretrained_model.layers[i].trainable = False
+            input_vec = self.pretrained_model.layers[i](input_vec)
             if i in self.style_layers:
                 intermediary_layers['style'].append(input_vec)
             elif i in self.content_layers:
@@ -102,7 +105,6 @@ class NeuralModel:
         gram_res = []
         print("started calculating gram matrices for network outputs")
         for layer in intermediary_layers['style']:
-            print("Looking at:",layer)
             gram_res.append(Lambda(gram_matrix_sum, name="style" + str(len(gram_res)))(layer))
             print("Finished with:",layer)
         
@@ -111,11 +113,12 @@ class NeuralModel:
         adam = Adam(lr=0.1)
 
         self.model = Model(inputs=inputs, outputs=output_layers)
-        self.model.compile(optimizer=adam, loss=mean_squared_loss, loss_weights=[0, 1.6, 1, 1, 1, 1, 1])
+        self.model.compile(optimizer=adam, loss=mean_squared_loss, loss_weights=self.loss_weights)
         print("Creating graph image")
         plot_model(self.model, to_file='updated_model1.png')
         print("Created graph image")
-        self.model.load_weights('my_weights.hdf5')
+        if self.weight_file:
+            self.model.load_weights(self.weight_file)
 
 
     def fit_through_pretrained_network(self, images):
@@ -124,17 +127,14 @@ class NeuralModel:
         
         targets = []
         for img in images['content']:
-            #targets.append([np.array(func(img, 1.))[0][0] for func in self.pred_functors['all']])
             targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['content']]))
         for img in images['style']:
-            #targets.append([np.array(func(img, 1.))[0][0] for func in self.pred_functors['all']])
             targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['style']]))
         gram_values = [targets[0]]
         for layer in targets[1]:
             mat = np.array(gram_matrix_training(layer))
             gram_values.append(mat)
         return gram_values
-        #print(np.array(targets).shape)
 
     def fit(self, images):
         target = self.fit_through_pretrained_network(images)
@@ -154,7 +154,7 @@ class NeuralModel:
 
 
 
-network = NeuralModel(pretrained_network, (0,), [1,4,7,12,17], [13])
+network = NeuralModel((0,))
 network.define_generator_model()
 
 img = np.array(image.load_img('test.png', target_size=(256, 256, 3))) / 255
