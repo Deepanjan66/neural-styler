@@ -16,4 +16,5 @@ def mean_squared_loss(y_true, y_pred):
     if pred_max != 0:
         y_pred /= pred_max
     loss = mean_squared_error(y_true, y_pred)
-    return loss / K.sum(loss)
+    return loss
+

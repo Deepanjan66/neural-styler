@@ -104,3 +104,6 @@ ENV/
 
 src/style_images/*
 src/downloads/*
+# model ssved weights
+*.hdf5
+*.h5

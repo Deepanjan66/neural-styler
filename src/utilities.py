@@ -22,9 +22,9 @@ def get_conv_block(num_blocks, model_input, filters, \
     for i in range(num_blocks):
         model = Conv2D(filters=list_args['filters'][i], kernel_size=list_args['kernels'][i], \
                 strides=(1,1), padding="same", \
-                activation="linear", data_format="channels_last")(model)
+                data_format="channels_last", activation='relu')(model)
         model = list_args['normalization'][i](model)
-        model = list_args['activation'][i](model)
+        #model = list_args['activation'][i](model)
 
     return model
 
@@ -66,7 +66,7 @@ def gram_matrix_training(arr):
         for neuron in range(j + 1, shape_dict['layers']):
             gram_sum += np.multiply(arr[:,:,layer], arr[:,:,neuron])
         j += 1
-    gram_sum = np.array(gram_sum)
+    gram_sum = np.array(gram_sum) / np.mean(gram_sum)
     gram_sum = np.expand_dims(gram_sum, axis=0)
     return gram_sum
 
