@@ -2,8 +2,8 @@ from collections import defaultdict
 from keras.applications import vgg19
 from keras.optimizers import SGD
 from keras.preprocessing import image
-from keras.layers import Input, Flatten, Dense, Conv2D, UpSampling2D
-from keras.models import Model
+from keras.layers import Input, Flatten, Dense, Conv2D, UpSampling2D, Activation
+from keras.models import Model, load_model
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.normalization import BatchNormalization
 from keras.layers import concatenate, Lambda, Add
@@ -12,6 +12,7 @@ from keras import backend as K
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.utils import plot_model
+from tqdm import tqdm
 
 from utilities import *
 from custom_layers import pretrained_layer
@@ -20,7 +21,12 @@ from loss_func import *
 from configs import pretrained_network
 
 class NeuralModel:
-    def __init__(self, pretrained_model, input_shape, style_layers, content_layers):
+    def __init__(self, input_shape, 
+                style_layers=pretrained_style_layers, 
+                content_layers=pretrained_content_layers, 
+                pretrained_model=pretrained_network,
+                weight_file=None,
+                loss_weights=[1,1,1,1,1,1,1]):
         #self.loss_function = loss_function
         self.input_shape = input_shape
         self.network = None
@@ -82,16 +88,18 @@ class NeuralModel:
                             filters=num_channels,
                             kernels=[(1,1)],
                             normalization=BatchNormalization(), 
-                            activation=LeakyReLU(alpha=.001))
+                            activation=Activation('tanh'))
+
+        #texture_image = texture_image / K.max(texture_image)
 
         #input_tensor = Input(shape=texture_image.shape[1:], name="vgg_input")
         vgg_model = vgg19.VGG19(include_top=False, weights='imagenet', input_tensor=texture_image[1:])
         
         intermediary_layers = defaultdict(list)
         input_vec = texture_image
-        for i in range(len(vgg_model.layers)):
-            vgg_model.layers[i].trainable = False
-            input_vec = vgg_model.layers[i](input_vec)
+        for i in range(len(self.pretrained_model.layers)):
+            self.pretrained_model.layers[i].trainable = False
+            input_vec = self.pretrained_model.layers[i](input_vec)
             if i in self.style_layers:
                 intermediary_layers['style'].append(input_vec)
             elif i in self.content_layers:
@@ -105,9 +113,9 @@ class NeuralModel:
             print("Finished with:",layer)
 
         print("Done getting all gram matrices")
-        output_layers = [texture_image] + intermediary_layers['content'] + gram_res
-        sgd = SGD(lr=0.01, momentum=0.1, decay=0.0, nesterov=True)
 
+        output_layers = [texture_image] + intermediary_layers['content'] + gram_res
+        adam = Adam(lr=0.01)
         self.model = Model(inputs=inputs, outputs=output_layers)
         self.model.compile(optimizer=sgd, loss=mean_squared_loss)
         print("Creating graph image")
@@ -120,6 +128,21 @@ class NeuralModel:
             raise ValueError("Please provide pretrained model for training")
         
         targets = []
+
+        for content, style in zip(images['content'], images['style']):
+            content_functors = np.array([np.array(func([content, 1.]))[0][0] for func in self.pred_functors['content']])
+            style_functors = np.array([np.array(func([style, 1.]))[0][0] for func in self.pred_functors['style']]) 
+            targets.append([content_functors, style_functors])
+        all_targets = []
+        for target in targets:
+            gram_values = [target[0]]
+            for layer in target[1]:
+                mat = np.array(gram_matrix_training(layer))
+                gram_values.append(mat)
+            all_targets.append(gram_values)
+
+        return all_targets
+
         for img in images['content']:
             #targets.append([np.array(func(img, 1.))[0][0] for func in self.pred_functors['all']])
             targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['content']]))
@@ -134,35 +157,52 @@ class NeuralModel:
         #print(np.array(targets).shape)
 
     def fit(self, images):
-        target = self.fit_through_pretrained_network(images)
-        rand_img = [np.expand_dims(np.random.randint(0, high=1, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
-                for i in range(6)]
+        all_targets = self.fit_through_pretrained_network(images)
+        
         print("Training network with provided training images")
         checkpointer = ModelCheckpoint(filepath='/tmp/weights.hdf5', verbose=1, save_best_only=True)
-
-        self.model.fit(rand_img, images['content'] + target, epochs=10000, callbacks=[checkpointer])
-        self.model.save_weights('/tmp/weights.hdf5')
+        #lr_schedular = LearningRateScheduler(schedular)
+        #for _ in range(1000):
+        mixed_targets = [[content] + target for content, target in zip(images['content'], all_targets)]
+        for _ in tqdm(range(100)):
+            rand_img = [np.expand_dims(np.random.randint(0, high=1, 
+                        size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
+                        for i in range(6)]
+            self.model.fit(rand_img, mixed_targets[0], callbacks=[checkpointer], batch_size=1)
+            self.model.save_weights('my_weights.hdf5')
+        self.model.save('my_model.h5')
 
     def pred(self, img):
+        rand_img = [np.expand_dims(np.random.randint(0, high=1, 
+                    size=(int(256/2**i),int(256/2**i), 3)), 
+                    axis=0) for i in range(1, 6)]
+        img = [img] + rand_img
         return self.model.predict(img)
 
 
 
 
-network = NeuralModel(pretrained_network, (0,), [1,4,7,12,17], [13])
+network = NeuralModel((0,), weight_file="my_weights.hdf5")
 network.define_generator_model()
 
-img = np.array(image.load_img('test.png', target_size=(256, 256, 3))) / 255
-img = np.expand_dims(img, axis=0)
+
+#style_images = get_all_images('style_images/', n = 2)
+
+style_img = np.array(image.load_img('test.png', target_size=(int(256), int(256), 3))) / 255
+style_img = np.expand_dims(style_img, axis=0)
+
+print(np.amax(style_img))
+
 content_img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3))) / 255
 content_img = np.expand_dims(content_img, axis=0)
-network.fit({'style':[img], 'content':[content_img]})
-rand_img = [np.expand_dims(np.random.randint(0, high=1, size=(int(256/2**i),int(256/2**i), 3)), axis=0) \
-        for i in range(1, 6)]
+network.fit({'style':[style_img], 'content':[content_img]})
+
 img = np.array(image.load_img('content_test.png', target_size=(int(256), int(256), 3))) / 255
 img = np.expand_dims(img, axis=0)
-rand_img = [img] + rand_img
-res = network.pred(rand_img)[0].reshape((256,256,3))
+res = network.pred(img)[0].reshape((256,256,3))
+print(np.amax(res))
+
+res = res * 255
 
 plt.imshow(res)
 plt.show()

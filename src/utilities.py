@@ -1,6 +1,8 @@
+from keras.preprocessing import image
 from keras import backend as K
 from keras.layers import Conv2D
 import numpy as np
+import os
 
 def get_conv_block(num_blocks, model_input, filters, \
                    kernels, activation, \
@@ -35,12 +37,13 @@ def convert_to_list(num_blocks, **kwargs):
 
 def gram_matrix_sum(arr):
     if len(arr.shape) == 4:
-        _ , length, width, num_kernels = arr.shape
+        batch_size , length, width, num_kernels = arr.shape
     else:
         length, width, num_kernels = arr.shape
     arr = K.reshape(arr,(length, width*num_kernels))
 
     gram_sum = K.dot(arr, K.transpose(arr))
+    gram_sum = gram_sum # / K.mean(gram_sum)
     gram_sum = K.reshape(gram_sum, (1, gram_sum.shape[0], gram_sum.shape[1]))
 
     return gram_sum
@@ -87,3 +90,20 @@ def get_model_layers(pretrained_model):
     pred_functors['all'] = pred_functors['content'] + pred_functors['style']
 
     return pred_functors
+
+def get_all_images(foldername, n=0):
+    images = []
+    count = 0
+    for image_name in os.listdir(foldername):
+        try:
+            img = np.array(image.load_img(os.path.join(foldername, image_name), target_size=(256, 256, 3))) / 255
+            img = np.expand_dims(img, axis=0)
+            images.append(img)
+            count += 1
+        except:
+            continue
+
+        if n > 0 and count >= n:
+            break
+
+    return images
