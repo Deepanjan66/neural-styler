@@ -48,12 +48,22 @@ With my implementation, I aim to use the research outcomes of the papers mention
 for creating a network that generalizes better. My current architecture is very similar to the architecture showed in [i].
 Below is a keras generated image of the network in my implementation.
 
+![Neural Model Image](https://github.com/Deepanjan66/neural-styler/blob/master/src/updated_model.png)
+
 
 
 ## Results from my network
 
 This implementation is still being trained. Intermediary training results are shown below:
+<p align="center">
+<img src="https://github.com/Deepanjan66/neural-styler/blob/master/images/content1.png" alt="Content image" width="350" height= "350"/>
 
+<img src="https://github.com/Deepanjan66/neural-styler/blob/master/images/style1.png" alt="Style image" width="350" height= "350"/>
+
+<img src="https://github.com/Deepanjan66/neural-styler/blob/master/images/styled_image1.png" alt="Styled image" width="350" height= "350"/>
+</p>
+<b align="center">Fig: Content image on top left, style image on top right and styled image on the bottom. This styled image
+  was obtained by putting more weight on the content loss</b>
 
 
 
