@@ -28,11 +28,7 @@ class NeuralModel:
                 content_layers=pretrained_content_layers, 
                 pretrained_model=pretrained_network,
                 weight_file=None,
-<<<<<<< HEAD
                 loss_weights=[1,1,1,1,1,1,1]):
-=======
-                loss_weights=[1]):
->>>>>>> 96180015c4a453dca7d14dbd95d77eb704885fab
         #self.loss_function = loss_function
         self.input_shape = input_shape
         self.network = None
