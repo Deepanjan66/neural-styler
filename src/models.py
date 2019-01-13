@@ -143,16 +143,7 @@ class NeuralModel:
             all_targets.append(gram_values)
 
         return all_targets
-
-        for img in images['content']:
-            targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['content']]))
-        for img in images['style']:
-            targets.append(np.array([np.array(func([img, 1.]))[0][0] for func in self.pred_functors['style']]))
-        gram_values = [targets[0]]
-        for layer in targets[1]:
-            mat = np.array(gram_matrix_training(layer))
-            gram_values.append(mat)
-        return gram_values
+    
 
     def fit(self, images):
         all_targets = self.fit_through_pretrained_network(images)
